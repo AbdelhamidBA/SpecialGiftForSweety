@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>For Samar</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #0984e3;
+    --blue-light: #74b9ff;
+    --blue-pale: #a8d4ff;
+    --navy: #020b18;
+    --navy-mid: #041428;
+    --gold: #f0c060;
+    --white: #e8f0ff;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: 'Cormorant Garamond', serif;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* CURSOR */
+  #cursor {
+    position: fixed;
+    width: 12px; height: 12px;
+    background: var(--blue);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s, opacity 0.3s;
+    box-shadow: 0 0 12px 4px rgba(9,132,227,0.5);
+    mix-blend-mode: screen;
+  }
+
+  /* ─── SCREEN 1: TERMINAL ─── */
+  #terminal-screen {
+    position: fixed; inset: 0;
+    background: #000;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    padding: 2rem;
+  }
+
+  .terminal-box {
+    width: 100%; max-width: 680px;
+    background: #030d1a;
+    border: 1px solid #0984e3;
+    border-radius: 6px;
+    box-shadow: 0 0 60px rgba(9,132,227,0.2), inset 0 0 30px rgba(9,132,227,0.03);
+    overflow: hidden;
+  }
+
+  .terminal-bar {
+    background: #041428;
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid #0984e320;
+  }
+
+  .t-dot {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+  }
+  .t-dot:nth-child(1) { background: #ff5f57; }
+  .t-dot:nth-child(2) { background: #ffbd2e; }
+  .t-dot:nth-child(3) { background: #28c940; }
+
+  .terminal-title {
+    flex: 1; text-align: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    color: #0984e380;
+    letter-spacing: 0.08em;
+  }
+
+  .terminal-body {
+    padding: 2rem 2.5rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 2;
+    color: #74b9ff;
+    min-height: 260px;
+  }
+
+  .t-line { display: block; opacity: 0; }
+  .t-line.visible { opacity: 1; }
+  .t-prompt { color: #0984e3; }
+  .t-white { color: #e8f0ff; }
+  .t-dim { color: #0984e360; }
+  .t-accent { color: #a8d4ff; }
+  .t-gold { color: #f0c060; }
+
+  .cursor-blink {
+    display: inline-block;
+    width: 8px; height: 14px;
+    background: #0984e3;
+    animation: blink 1s infinite;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+  @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+
+  .launch-btn {
+    display: block;
+    margin: 1.5rem auto 0.5rem;
+    padding: 0.85rem 3rem;
+    background: transparent;
+    border: 1px solid var(--blue);
+    color: var(--blue);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.18em;
+    cursor: none;
+    border-radius: 2px;
+    transition: all 0.3s;
+    opacity: 0;
+    box-shadow: 0 0 20px rgba(9,132,227,0.1);
+  }
+  .launch-btn:hover {
+    background: rgba(9,132,227,0.12);
+    box-shadow: 0 0 40px rgba(9,132,227,0.35);
+    color: var(--blue-light);
+  }
+  .launch-btn.show { opacity: 1; }
+
+  /* ─── TRANSITION OVERLAY ─── */
+  #transition-overlay {
+    position: fixed; inset: 0;
+    z-index: 99;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(ellipse at center, #041428 0%, #000 100%);
+  }
+
+  #warp-canvas {
+    position: fixed; inset: 0;
+    z-index: 98;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  /* ─── MAIN AURORA SCENE ─── */
+  #main-scene {
+    position: relative;
+    min-height: 100vh;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  #star-canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  #aurora-canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.55;
+  }
+
+  /* ─── CONSTELLATION OVERLAY ─── */
+  #constellation-section {
+    position: relative;
+    z-index: 10;
+    height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 2rem;
+  }
+
+  #constellation-canvas {
+    width: 100%; max-width: 700px;
+    height: 360px;
+    cursor: none;
+  }
+
+  .constellation-hint {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--blue-light);
+    letter-spacing: 0.2em;
+    opacity: 0.6;
+    margin-top: 1.2rem;
+    text-align: center;
+  }
+
+  .birthday-badge {
+    margin-top: 1.8rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 0.45rem 1.4rem;
+    border-radius: 2px;
+    opacity: 0.85;
+    box-shadow: 0 0 20px rgba(240,192,96,0.15);
+  }
+
+  /* ─── SCROLL DOWN ARROW ─── */
+  .scroll-hint {
+    position: absolute;
+    bottom: 2.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex; flex-direction: column;
+    align-items: center; gap: 0.5rem;
+    opacity: 0.5;
+    animation: float-hint 2.5s ease-in-out infinite;
+  }
+  .scroll-hint span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    color: var(--blue-light);
+  }
+  .scroll-arrow {
+    width: 1px; height: 36px;
+    background: linear-gradient(to bottom, var(--blue-light), transparent);
+  }
+  @keyframes float-hint {
+    0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(8px)}
+  }
+
+  /* ─── LETTER SECTION ─── */
+  #letter-section {
+    position: relative;
+    z-index: 10;
+    padding: 4rem 1.5rem 6rem;
+  }
+
+  .letter-container {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .letter-eyebrow {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.3em;
+    color: var(--blue);
+    text-align: center;
+    margin-bottom: 3.5rem;
+    opacity: 0.7;
+  }
+
+  .letter-salutation {
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    font-weight: 300;
+    font-style: italic;
+    color: var(--white);
+    text-align: center;
+    margin-bottom: 3.5rem;
+    line-height: 1.3;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.9s ease, transform 0.9s ease;
+  }
+
+  .letter-paragraph {
+    font-size: clamp(1.08rem, 2.2vw, 1.22rem);
+    font-weight: 300;
+    line-height: 1.95;
+    color: rgba(232, 240, 255, 0.88);
+    margin-bottom: 2.8rem;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.9s ease, transform 0.9s ease;
+    text-align: left;
+    letter-spacing: 0.01em;
+  }
+
+  .letter-paragraph em {
+    color: var(--blue-pale);
+    font-style: italic;
+  }
+
+  .letter-paragraph.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .letter-salutation.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .letter-divider {
+    width: 60px; height: 1px;
+    background: linear-gradient(to right, transparent, var(--blue), transparent);
+    margin: 3.5rem auto;
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+  .letter-divider.visible { opacity: 0.5; }
+
+  .letter-closing {
+    text-align: center;
+    margin-top: 4rem;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 1.2s ease, transform 1.2s ease;
+  }
+  .letter-closing.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .closing-name {
+    font-size: clamp(2.8rem, 7vw, 5rem);
+    font-weight: 300;
+    font-style: italic;
+    color: var(--blue-light);
+    letter-spacing: 0.05em;
+    line-height: 1;
+    display: block;
+    margin-bottom: 0.8rem;
+  }
+
+  .closing-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.3em;
+    color: var(--blue);
+    opacity: 0.7;
+  }
+
+  .closing-sign {
+    margin-top: 3rem;
+    font-size: 1.2rem;
+    font-style: italic;
+    color: rgba(232,240,255,0.6);
+    line-height: 1.8;
+  }
+
+  /* ─── FIREWORKS CANVAS ─── */
+  #fireworks-canvas {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+
+  /* ─── COUNTDOWN ─── */
+  #countdown {
+    position: fixed;
+    top: 1.5rem; right: 1.5rem;
+    z-index: 50;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--blue);
+    opacity: 0;
+    text-align: right;
+    line-height: 1.7;
+    transition: opacity 1s ease;
+  }
+  #countdown.show { opacity: 0.7; }
+  #countdown-days {
+    font-size: 1.6rem;
+    color: var(--blue-light);
+    display: block;
+    line-height: 1;
+  }
+
+  @keyframes aurora-drift {
+    0%{transform:translateX(0) scaleY(1)}
+    50%{transform:translateX(60px) scaleY(1.08)}
+    100%{transform:translateX(0) scaleY(1)}
+  }
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+
+<!-- COUNTDOWN -->
+<div id="countdown">
+  <span id="countdown-days">--</span>
+  DAYS UNTIL<br>APR 29
+</div>
+
+<!-- SCREEN 1: TERMINAL -->
+<div id="terminal-screen">
+  <div class="terminal-box">
+    <div class="terminal-bar">
+      <div class="t-dot"></div>
+      <div class="t-dot"></div>
+      <div class="t-dot"></div>
+      <div class="terminal-title">birthday.sh -- private</div>
+    </div>
+    <div class="terminal-body" id="terminal-body"></div>
+  </div>
+  <button class="launch-btn" id="launch-btn" onclick="beginTransition()">OPEN THE LETTER</button>
+</div>
+
+<!-- WARP TRANSITION CANVAS -->
+<canvas id="warp-canvas"></canvas>
+<div id="transition-overlay"></div>
+
+<!-- MAIN AURORA SCENE -->
+<div id="main-scene">
+  <canvas id="star-canvas"></canvas>
+  <canvas id="aurora-canvas"></canvas>
+  <canvas id="fireworks-canvas"></canvas>
+
+  <div id="constellation-section">
+    <canvas id="constellation-canvas"></canvas>
+    <div class="constellation-hint">HOVER OVER THE STARS -- SAMAR LIVES IN THE SKY</div>
+    <div class="birthday-badge">APR 29 -- THE STARS ALIGNED</div>
+    <div class="scroll-hint">
+      <span>READ THE LETTER</span>
+      <div class="scroll-arrow"></div>
+    </div>
+  </div>
+
+  <div id="letter-section">
+    <div class="letter-container">
+      <div class="letter-eyebrow">A PRIVATE MESSAGE -- FOR YOUR EYES ONLY</div>
+
+      <div class="letter-salutation reveal-el">To the sweetest person,</div>
+
+      <div class="letter-paragraph reveal-el">
+        Probably you are reading this and laughing at this old way — who still writes a card on a birthday, right? But I wanted it to be special this year, or at least I try.
+      </div>
+
+      <div class="letter-divider reveal-el"></div>
+
+      <div class="letter-paragraph reveal-el">
+        Anyway, I wanted you to know that everything you are reading is coming from a place <em>you</em> have created and painted yourself in my heart.
+      </div>
+
+      <div class="letter-paragraph reveal-el">
+        Maybe sometimes you think I'm joking when I tell you that you are one of the most unique and special people I have met in my entire life. Sometimes I ask myself — what did I do to deserve meeting someone like you? And I also ask: why now, exactly, did we meet? I don't know if you share the same feeling, but for me this is how I feel. And after spending so much time with you, learning every small detail — what makes you happy, what makes you laugh, what makes you feel comfortable and what does not, even the things you like to eat — I got more and more attached to you with every day that passed. Despite you knowing I'm not the kind of person who lets people easily into his life, you came out of nowhere and <em>added color to mine.</em>
+      </div>
+
+      <div class="letter-divider reveal-el"></div>
+
+      <div class="letter-paragraph reveal-el">
+        If I try to describe you, I wouldn't find enough words for it. But one thing is certain: you are the sweetest, cutest, purest, most white-hearted and — most importantly — the prettiest woman I have ever met. It's true. You are mysterious; you don't let your feelings out that often. You have a certain toughness that makes things a bit challenging, and sometimes it scares me a little. But I think everyone carries that part inside — even I do, and maybe mine is harder to deal with than yours.
+      </div>
+
+      <div class="letter-paragraph reveal-el">
+        I always try to make you smile and feel happy. I know sometimes I succeed and sometimes I make you upset or feel sad, but I promise it's always by mistake. And yes, sometimes I ask too many questions — maybe it pushes you sometimes. But the only reason I do is because I care <em>so deeply</em> about you, and I fear to see you sad even for the smallest moment. That is something I truly cannot control.
+      </div>
+
+      <div class="letter-paragraph reveal-el">
+        Something I have never told you before: I live every moment, every second, every day with you as if it were the last. Everything we have ever spoken about is still memorized in me until this day. And I know you — if I told you this face to face, you would ask your usual question: <em>"Why?"</em> And my answer would be: I don't know. Or maybe I do know, and I'm just pretending to myself that I don't.
+      </div>
+
+      <div class="letter-divider reveal-el"></div>
+
+      <div class="letter-paragraph reveal-el">
+        I know this got too long, and you hate long messages. But you know for certain that I mean every single word here. I'm writing this like it's the last text — because maybe I won't have an opportunity like this ever again.
+      </div>
+
+      <div class="letter-paragraph reveal-el">
+        To end it — I wish you a <em>happy birthday, pretty girl.</em> I pray to God every day that you remain beside me, and I always ask Him in my prayers to keep you safe and healthy, to grant you all your wishes and all the happiness you deserve, and to keep that stunning smile on your face for the rest of your life. Because you are a piece of a diamond, and you deserve everything in this world. I hope this letter makes this birthday as memorable and unique as me — hihihi.
+      </div>
+
+      <div class="letter-paragraph reveal-el">
+        Always remember — your pretty boy is always beside you. To support you, to hear you, and to be there for you. Until I move to the next life, or someone takes my place.
+      </div>
+
+      <div class="letter-divider reveal-el"></div>
+
+      <div class="letter-closing reveal-el" id="letter-closing">
+        <span class="closing-name">Samar.</span>
+        <div class="closing-sub">HAPPY BIRTHDAY -- APRIL 29</div>
+        <div class="closing-sign">
+          Best wishes, sweety.<br>
+          <em>-- Your pretty boy</em>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CURSOR ──────────────────────────────────────────
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+});
+
+// ── COUNTDOWN ────────────────────────────────────────
+function updateCountdown() {
+  const now = new Date();
+  const bday = new Date(now.getFullYear(), 3, 29); // April 29
+  if (now > bday) bday.setFullYear(bday.getFullYear() + 1);
+  const diff = Math.ceil((bday - now) / 86400000);
+  const el = document.getElementById('countdown-days');
+  if (el) el.textContent = diff === 0 ? 'TODAY' : diff;
+}
+updateCountdown();
+
+// ── TERMINAL TYPING ──────────────────────────────────
+const lines = [
+  { text: '$ ./birthday.sh --recipient="Samar"', cls: 't-prompt', delay: 300 },
+  { text: '> Initializing...', cls: 't-dim', delay: 900 },
+  { text: '> Loading coordinates: April 29', cls: 't-accent', delay: 1400 },
+  { text: '> Mapping constellation: S-A-M-A-R', cls: 't-accent', delay: 1900 },
+  { text: '> Aurora calibration... DONE', cls: 't-white', delay: 2500 },
+  { text: '> Encoding private message...', cls: 't-dim', delay: 3000 },
+  { text: '> Encrypting with: every memory', cls: 't-white', delay: 3500 },
+  { text: '> Status: READY', cls: 't-gold', delay: 4100 },
+  { text: '>', cls: 't-prompt blink-line', delay: 4600, blink: true },
+];
+
+const body = document.getElementById('terminal-body');
+const btn = document.getElementById('launch-btn');
+
+lines.forEach(({ text, cls, delay, blink }) => {
+  setTimeout(() => {
+    const span = document.createElement('span');
+    span.className = 't-line visible ' + cls;
+    if (blink) {
+      span.innerHTML = text + ' <span class="cursor-blink"></span>';
+    } else {
+      span.textContent = text;
+    }
+    body.appendChild(span);
+  }, delay);
+});
+
+setTimeout(() => { btn.classList.add('show'); }, 5000);
+
+// ── WARP TRANSITION ───────────────────────────────────
+let warpActive = false;
+const warpCanvas = document.getElementById('warp-canvas');
+const warpCtx = warpCanvas.getContext('2d');
+
+function resizeWarp() {
+  warpCanvas.width = window.innerWidth;
+  warpCanvas.height = window.innerHeight;
+}
+resizeWarp();
+
+const warpStars = Array.from({ length: 220 }, () => ({
+  x: (Math.random() - 0.5) * window.innerWidth,
+  y: (Math.random() - 0.5) * window.innerHeight,
+  z: Math.random() * window.innerWidth,
+  px: 0, py: 0
+}));
+
+function drawWarp(progress) {
+  const W = warpCanvas.width, H = warpCanvas.height;
+  warpCtx.clearRect(0, 0, W, H);
+  warpCtx.fillStyle = `rgba(0,0,0,${0.15 + progress * 0.4})`;
+  warpCtx.fillRect(0, 0, W, H);
+
+  const speed = progress * 28;
+
+  warpStars.forEach(s => {
+    s.z -= speed;
+    if (s.z <= 0) {
+      s.x = (Math.random() - 0.5) * W;
+      s.y = (Math.random() - 0.5) * H;
+      s.z = W;
+    }
+    const cx = W / 2, cy = H / 2;
+    const sx = (s.x / s.z) * W + cx;
+    const sy = (s.y / s.z) * H + cy;
+    const px = (s.x / (s.z + speed)) * W + cx;
+    const py = (s.y / (s.z + speed)) * H + cy;
+    const size = Math.max(0.3, (1 - s.z / W) * 3.5);
+    const opacity = Math.min(1, (1 - s.z / W) * 1.8);
+
+    warpCtx.beginPath();
+    warpCtx.moveTo(px, py);
+    warpCtx.lineTo(sx, sy);
+    const r = Math.floor(116 + 140 * opacity);
+    const g = Math.floor(185 + 70 * opacity);
+    warpCtx.strokeStyle = `rgba(${r},${g},255,${opacity * 0.9})`;
+    warpCtx.lineWidth = size;
+    warpCtx.stroke();
+  });
+}
+
+let warpRAF, warpStart;
+function beginTransition() {
+  document.getElementById('launch-btn').style.pointerEvents = 'none';
+
+  // Flash terminal
+  const termScreen = document.getElementById('terminal-screen');
+  termScreen.style.transition = 'opacity 0.3s';
+
+  const overlay = document.getElementById('transition-overlay');
+  const warpEl = document.getElementById('warp-canvas');
+
+  // Phase 1: warp speed
+  warpEl.style.transition = 'opacity 0.4s';
+  warpEl.style.opacity = '1';
+  termScreen.style.opacity = '0';
+
+  warpActive = true;
+  warpStart = performance.now();
+
+  function animateWarp(now) {
+    const elapsed = (now - warpStart) / 1000;
+    const progress = Math.min(elapsed / 1.8, 1);
+    drawWarp(progress);
+    if (warpActive) warpRAF = requestAnimationFrame(animateWarp);
+  }
+  requestAnimationFrame(animateWarp);
+
+  // Phase 2: fade into sky
+  setTimeout(() => {
+    termScreen.style.display = 'none';
+
+    // White flash
+    overlay.style.transition = 'opacity 0.3s';
+    overlay.style.opacity = '1';
+
+    setTimeout(() => {
+      warpActive = false;
+      warpEl.style.opacity = '0';
+
+      const mainScene = document.getElementById('main-scene');
+      mainScene.style.visibility = 'visible';
+      mainScene.style.transition = 'opacity 1.2s ease';
+      mainScene.style.opacity = '1';
+
+      overlay.style.transition = 'opacity 1.4s ease';
+      overlay.style.opacity = '0';
+
+      document.getElementById('countdown').classList.add('show');
+
+      setTimeout(() => {
+        initStars();
+        initAurora();
+        initConstellation();
+        initScrollReveal();
+      }, 400);
+    }, 350);
+  }, 1900);
+}
+
+// ── STAR FIELD ────────────────────────────────────────
+const starCanvas = document.getElementById('star-canvas');
+const starCtx = starCanvas.getContext('2d');
+let stars = [];
+
+function initStars() {
+  starCanvas.width = window.innerWidth;
+  starCanvas.height = window.innerHeight;
+  stars = Array.from({ length: 280 }, () => ({
+    x: Math.random() * starCanvas.width,
+    y: Math.random() * starCanvas.height,
+    r: Math.random() * 1.3 + 0.2,
+    alpha: Math.random() * 0.7 + 0.3,
+    speed: Math.random() * 0.008 + 0.002,
+    phase: Math.random() * Math.PI * 2,
+  }));
+
+  // Shooting stars
+  setInterval(spawnShootingStar, 3800);
+  requestAnimationFrame(animateStars);
+}
+
+let shootingStars = [];
+function spawnShootingStar() {
+  shootingStars.push({
+    x: Math.random() * starCanvas.width * 0.7,
+    y: Math.random() * starCanvas.height * 0.4,
+    len: 0,
+    maxLen: 180 + Math.random() * 120,
+    speed: 9 + Math.random() * 6,
+    angle: Math.PI / 5 + Math.random() * 0.3,
+    alpha: 1,
+    done: false
+  });
+}
+
+function animateStars(now) {
+  starCtx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+  const t = now / 1000;
+  stars.forEach(s => {
+    const a = s.alpha * (0.7 + 0.3 * Math.sin(t * s.speed * 10 + s.phase));
+    starCtx.beginPath();
+    starCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    starCtx.fillStyle = `rgba(200, 225, 255, ${a})`;
+    starCtx.fill();
+  });
+
+  shootingStars.forEach(s => {
+    if (s.done) return;
+    s.len += s.speed;
+    const x2 = s.x + Math.cos(s.angle) * s.len;
+    const y2 = s.y + Math.sin(s.angle) * s.len;
+    if (s.len > s.maxLen) { s.alpha -= 0.06; if (s.alpha <= 0) s.done = true; }
+    const grad = starCtx.createLinearGradient(s.x, s.y, x2, y2);
+    grad.addColorStop(0, `rgba(255,255,255,0)`);
+    grad.addColorStop(1, `rgba(180,220,255,${s.alpha})`);
+    starCtx.beginPath();
+    starCtx.moveTo(s.x, s.y);
+    starCtx.lineTo(x2, y2);
+    starCtx.strokeStyle = grad;
+    starCtx.lineWidth = 1.5;
+    starCtx.stroke();
+  });
+  shootingStars = shootingStars.filter(s => !s.done);
+  requestAnimationFrame(animateStars);
+}
+
+// ── AURORA ─────────────────────────────────────────────
+const auroraCanvas = document.getElementById('aurora-canvas');
+const auroraCtx = auroraCanvas.getContext('2d');
+
+function initAurora() {
+  auroraCanvas.width = window.innerWidth;
+  auroraCanvas.height = window.innerHeight;
+  requestAnimationFrame(animateAurora);
+}
+
+function animateAurora(now) {
+  const W = auroraCanvas.width, H = auroraCanvas.height;
+  auroraCtx.clearRect(0, 0, W, H);
+  const t = now / 3000;
+
+  const bands = [
+    { color1: 'rgba(9,132,227,0.22)', color2: 'rgba(9,132,227,0)', offset: 0, freq: 0.9, amp: 55 },
+    { color1: 'rgba(116,185,255,0.16)', color2: 'rgba(116,185,255,0)', offset: 0.3, freq: 1.1, amp: 40 },
+    { color1: 'rgba(0,206,201,0.14)', color2: 'rgba(0,206,201,0)', offset: 0.6, freq: 0.7, amp: 70 },
+    { color1: 'rgba(108,92,231,0.10)', color2: 'rgba(108,92,231,0)', offset: 0.9, freq: 1.3, amp: 35 },
+  ];
+
+  bands.forEach((b, i) => {
+    const baseY = H * (0.12 + i * 0.07);
+    auroraCtx.beginPath();
+    auroraCtx.moveTo(0, baseY);
+    for (let x = 0; x <= W; x += 6) {
+      const y = baseY
+        + Math.sin(x / W * Math.PI * 2 * b.freq + t + b.offset) * b.amp
+        + Math.sin(x / W * Math.PI * 3 + t * 1.3 + b.offset) * (b.amp * 0.4);
+      auroraCtx.lineTo(x, y);
+    }
+    auroraCtx.lineTo(W, 0); auroraCtx.lineTo(0, 0);
+    auroraCtx.closePath();
+    const grad = auroraCtx.createLinearGradient(0, baseY - b.amp, 0, baseY + b.amp * 2.5);
+    grad.addColorStop(0, b.color1);
+    grad.addColorStop(1, b.color2);
+    auroraCtx.fillStyle = grad;
+    auroraCtx.fill();
+  });
+
+  requestAnimationFrame(animateAurora);
+}
+
+// ── SAMAR CONSTELLATION ────────────────────────────────
+function initConstellation() {
+  const canvas = document.getElementById('constellation-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+
+  const W = canvas.width, H = canvas.height;
+  const scaleX = W / 700, scaleY = H / 360;
+
+  // Star points spelling SAMAR (plotted on 700x360 grid)
+  const rawStars = [
+    // S
+    { x:60,  y:60,  name:'Sarya' },
+    { x:40,  y:70,  name:'Sefra' },
+    { x:30,  y:95,  name:'Sabik' },
+    { x:45,  y:120, name:'Sheratan' },
+    { x:65,  y:125, name:'Saiph' },
+    { x:70,  y:150, name:'Sadalsuud' },
+    { x:55,  y:170, name:'Scheat' },
+    { x:35,  y:175, name:'Shaula' },
+    { x:25,  y:200, name:'Sham' },
+    // A
+    { x:110, y:200, name:'Alphecca' },
+    { x:130, y:140, name:'Alnitak' },
+    { x:150, y:80,  name:'Altair' },
+    { x:170, y:140, name:'Alderamin' },
+    { x:190, y:200, name:'Almach' },
+    { x:130, y:160, name:'Albireo' },
+    { x:170, y:160, name:'Aludra' },
+    // M
+    { x:230, y:200, name:'Mirfak' },
+    { x:230, y:80,  name:'Mira' },
+    { x:265, y:135, name:'Mimosa' },
+    { x:300, y:80,  name:'Mintaka' },
+    { x:300, y:200, name:'Merak' },
+    // A
+    { x:345, y:200, name:'Achernar' },
+    { x:365, y:140, name:'Arcturus' },
+    { x:385, y:80,  name:'Antares' },
+    { x:405, y:140, name:'Aldebaran' },
+    { x:425, y:200, name:'Algenib' },
+    { x:365, y:160, name:'Ankaa' },
+    { x:405, y:160, name:'Alphard' },
+    // R
+    { x:465, y:80,  name:'Rigel' },
+    { x:465, y:200, name:'Rasalhague' },
+    { x:500, y:80,  name:'Rastaban' },
+    { x:530, y:100, name:'Rukbat' },
+    { x:535, y:130, name:'Rotanev' },
+    { x:500, y:155, name:'Regor' },
+    { x:530, y:200, name:'Ras Alhague' },
+  ];
+
+  // Connection lines per letter
+  const connections = [
+    // S
+    [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],
+    // A
+    [9,10],[10,11],[11,12],[12,13],[14,15],
+    // M
+    [16,17],[17,18],[18,19],[19,20],
+    // A2
+    [21,22],[22,23],[23,24],[24,25],[26,27],
+    // R
+    [28,29],[28,30],[30,31],[31,32],[32,33],[33,34],
+  ];
+
+  const scaledStars = rawStars.map(s => ({
+    ...s,
+    x: s.x * scaleX,
+    y: s.y * scaleY,
+    pulse: Math.random() * Math.PI * 2,
+    baseR: 2.5 + Math.random() * 1.5
+  }));
+
+  let hoveredStar = null;
+
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    hoveredStar = null;
+    scaledStars.forEach(s => {
+      const d = Math.hypot(mx - s.x, my - s.y);
+      if (d < 18) hoveredStar = s;
+    });
+  });
+
+  canvas.addEventListener('mouseleave', () => { hoveredStar = null; });
+
+  const isBirthday = () => {
+    const n = new Date();
+    return n.getMonth() === 3 && n.getDate() === 29;
+  };
+
+  function drawConstellation(now) {
+    ctx.clearRect(0, 0, W, H);
+    const t = now / 1000;
+    const birthday = isBirthday();
+
+    // Lines
+    connections.forEach(([a, b]) => {
+      const s1 = scaledStars[a], s2 = scaledStars[b];
+      const grad = ctx.createLinearGradient(s1.x, s1.y, s2.x, s2.y);
+      const alpha = birthday ? 0.55 : 0.28;
+      grad.addColorStop(0, `rgba(9,132,227,${alpha})`);
+      grad.addColorStop(0.5, `rgba(116,185,255,${alpha * 0.8})`);
+      grad.addColorStop(1, `rgba(9,132,227,${alpha})`);
+      ctx.beginPath();
+      ctx.moveTo(s1.x, s1.y);
+      ctx.lineTo(s2.x, s2.y);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = birthday ? 1.2 : 0.7;
+      ctx.stroke();
+    });
+
+    // Stars
+    scaledStars.forEach(s => {
+      const pulse = 0.7 + 0.3 * Math.sin(t * 1.4 + s.pulse);
+      const isHovered = hoveredStar === s;
+      const r = (isHovered ? s.baseR * 2.2 : s.baseR) * (birthday ? 1.4 : 1) * pulse;
+
+      // Glow
+      const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 5);
+      glow.addColorStop(0, `rgba(9,132,227,${isHovered ? 0.45 : 0.2})`);
+      glow.addColorStop(1, 'rgba(9,132,227,0)');
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r * 5, 0, Math.PI * 2);
+      ctx.fillStyle = glow;
+      ctx.fill();
+
+      // Core
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = isHovered ? '#ffffff' : `rgba(168,212,255,${0.8 * pulse})`;
+      ctx.fill();
+
+      // Tooltip
+      if (isHovered) {
+        ctx.font = '500 11px "Share Tech Mono", monospace';
+        ctx.fillStyle = 'rgba(116,185,255,0.95)';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.name.toUpperCase(), s.x, s.y - r - 10);
+      }
+    });
+
+    // Birthday burst text
+    if (birthday) {
+      ctx.font = 'italic 300 22px "Cormorant Garamond", serif';
+      ctx.fillStyle = 'rgba(240,192,96,0.85)';
+      ctx.textAlign = 'center';
+      ctx.fillText('the stars aligned -- happy birthday, Samar', W / 2, H - 18);
+    }
+
+    requestAnimationFrame(drawConstellation);
+  }
+
+  requestAnimationFrame(drawConstellation);
+}
+
+// ── SCROLL REVEAL ──────────────────────────────────────
+let fireworksTriggered = false;
+
+function initScrollReveal() {
+  const els = document.querySelectorAll('.reveal-el');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        // Check if this is the closing element
+        if (e.target.id === 'letter-closing' && !fireworksTriggered) {
+          fireworksTriggered = true;
+          setTimeout(launchFireworks, 800);
+        }
+      }
+    });
+  }, { threshold: 0.25 });
+  els.forEach(el => obs.observe(el));
+}
+
+// ── CLASSY FIREWORKS ───────────────────────────────────
+const fwCanvas = document.getElementById('fireworks-canvas');
+const fwCtx = fwCanvas.getContext('2d');
+let particles = [];
+let fwActive = false;
+
+function launchFireworks() {
+  fwCanvas.width = window.innerWidth;
+  fwCanvas.height = window.innerHeight;
+  fwCanvas.style.opacity = '1';
+  fwActive = true;
+
+  const palette = [
+    [9, 132, 227],
+    [116, 185, 255],
+    [168, 212, 255],
+    [240, 192, 96],
+    [255, 255, 255],
+    [0, 184, 180],
+  ];
+
+  function burst(x, y) {
+    const color = palette[Math.floor(Math.random() * palette.length)];
+    const count = 48 + Math.floor(Math.random() * 24);
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.15;
+      const speed = 1.2 + Math.random() * 3.2;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        alpha: 1,
+        r: 1.6 + Math.random() * 1.4,
+        decay: 0.012 + Math.random() * 0.008,
+        gravity: 0.045,
+        color,
+        trail: [],
+      });
+    }
+  }
+
+  // Staggered elegant bursts
+  const positions = [
+    [0.25, 0.32], [0.75, 0.28], [0.5, 0.22],
+    [0.15, 0.45], [0.85, 0.42], [0.5, 0.38],
+    [0.35, 0.55], [0.65, 0.5],
+  ];
+
+  positions.forEach(([px, py], i) => {
+    setTimeout(() => {
+      burst(px * fwCanvas.width, py * fwCanvas.height);
+    }, i * 420);
+  });
+
+  // Second wave
+  setTimeout(() => {
+    [[0.4, 0.3], [0.6, 0.25], [0.5, 0.45]].forEach(([px, py], i) => {
+      setTimeout(() => burst(px * fwCanvas.width, py * fwCanvas.height), i * 320);
+    });
+  }, 3800);
+
+  let fwLast = 0;
+  function animateFW(now) {
+    if (!fwActive) return;
+    const dt = now - fwLast;
+    fwLast = now;
+
+    fwCtx.fillStyle = 'rgba(2,11,24,0.22)';
+    fwCtx.fillRect(0, 0, fwCanvas.width, fwCanvas.height);
+
+    particles.forEach(p => {
+      p.trail.push({ x: p.x, y: p.y, a: p.alpha });
+      if (p.trail.length > 7) p.trail.shift();
+
+      // Trail
+      p.trail.forEach((pt, idx) => {
+        const ta = pt.a * (idx / p.trail.length) * 0.35;
+        fwCtx.beginPath();
+        fwCtx.arc(pt.x, pt.y, p.r * 0.6, 0, Math.PI * 2);
+        fwCtx.fillStyle = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${ta})`;
+        fwCtx.fill();
+      });
+
+      // Core
+      fwCtx.beginPath();
+      fwCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      fwCtx.fillStyle = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${p.alpha})`;
+      fwCtx.fill();
+
+      // Glow
+      const glow = fwCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4);
+      glow.addColorStop(0, `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${p.alpha * 0.3})`);
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
+      fwCtx.beginPath();
+      fwCtx.arc(p.x, p.y, p.r * 4, 0, Math.PI * 2);
+      fwCtx.fillStyle = glow;
+      fwCtx.fill();
+
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += p.gravity;
+      p.vx *= 0.985;
+      p.alpha -= p.decay;
+    });
+
+    particles = particles.filter(p => p.alpha > 0);
+
+    if (particles.length > 0 || now < fwLast + 6000) {
+      requestAnimationFrame(animateFW);
+    } else {
+      fwCanvas.style.opacity = '0';
+      fwActive = false;
+    }
+  }
+
+  requestAnimationFrame(animateFW);
+}
+
+window.addEventListener('resize', () => {
+  if (starCanvas.width) {
+    starCanvas.width = window.innerWidth;
+    starCanvas.height = window.innerHeight;
+  }
+  if (auroraCanvas.width) {
+    auroraCanvas.width = window.innerWidth;
+    auroraCanvas.height = window.innerHeight;
+  }
+  resizeWarp();
+});
+</script>
+</body>
+</html>
