@@ -871,6 +871,23 @@
     .pause-button { right: 50%; transform: translateX(50%); bottom: 1.6rem; }
   }
 
+  @supports (-webkit-touch-callout: none) {
+    .spotlight { filter: none; }
+    .glass-panel,
+    .letter-shell,
+    .toast,
+    .hud-chip,
+    .pause-button {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    .letter-paragraph {
+      filter: none;
+      transition: opacity 0.75s ease, transform 0.75s ease;
+    }
+    #aurora { opacity: 0.9; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.001ms !important;
@@ -1036,6 +1053,12 @@ const transitionVeil = document.getElementById("transitionVeil");
 const dimensionCanvas = document.getElementById("dimension-travel");
 const dimension = dimensionCanvas.getContext("2d");
 
+const PERF = {
+  mobile: matchMedia("(max-width: 820px)").matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent),
+  iosSafari: /iP(ad|hone|od)/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1),
+  reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches
+};
+
 let started = false;
 let autoScroll = false;
 let paused = false;
@@ -1043,8 +1066,9 @@ let scrollRAF = null;
 let fireworksStarted = false;
 let dimensionRatio = setCanvasSize(dimensionCanvas);
 
-function setCanvasSize(canvas) {
-  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+function setCanvasSize(canvas, maxRatio) {
+  const cap = maxRatio || (PERF.mobile ? 1.15 : 1.5);
+  const ratio = Math.min(window.devicePixelRatio || 1, cap);
   canvas.width = Math.floor(window.innerWidth * ratio);
   canvas.height = Math.floor(window.innerHeight * ratio);
   canvas.style.width = window.innerWidth + "px";
@@ -1089,10 +1113,12 @@ const sky = skyCanvas.getContext("2d");
 let skyRatio = setCanvasSize(skyCanvas);
 let stars = [];
 let meteors = [];
+let skyLoopStarted = false;
 
 function seedStars() {
-  const count = Math.floor(window.innerWidth * window.innerHeight / 5200);
-  stars = Array.from({ length: Math.max(140, count) }, () => ({
+  const density = PERF.mobile ? 9500 : 7000;
+  const count = Math.floor(window.innerWidth * window.innerHeight / density);
+  stars = Array.from({ length: Math.max(PERF.mobile ? 90 : 140, count) }, () => ({
     x: Math.random() * skyCanvas.width,
     y: Math.random() * skyCanvas.height,
     r: (Math.random() * 1.3 + 0.25) * skyRatio,
@@ -1112,7 +1138,14 @@ function spawnMeteor() {
   });
 }
 
+let lastSkyFrame = 0;
 function drawSky(now) {
+  const interval = PERF.mobile ? 1000 / 24 : 1000 / 30;
+  if (now - lastSkyFrame < interval) {
+    requestAnimationFrame(drawSky);
+    return;
+  }
+  lastSkyFrame = now;
   sky.clearRect(0, 0, skyCanvas.width, skyCanvas.height);
   const time = now / 1000;
   sky.fillStyle = "rgba(1,4,11,0.18)";
@@ -1148,17 +1181,24 @@ function drawSky(now) {
 
 seedStars();
 setInterval(() => { if (started) spawnMeteor(); }, 3300);
-requestAnimationFrame(drawSky);
 
 const auroraCanvas = document.getElementById("aurora");
 const aurora = auroraCanvas.getContext("2d");
 let auroraRatio = setCanvasSize(auroraCanvas);
+let auroraLoopStarted = false;
 
+let lastAuroraFrame = 0;
 function drawAurora(now) {
+  const interval = PERF.mobile ? 1000 / 20 : 1000 / 28;
+  if (now - lastAuroraFrame < interval) {
+    requestAnimationFrame(drawAurora);
+    return;
+  }
+  lastAuroraFrame = now;
   const w = auroraCanvas.width;
   const h = auroraCanvas.height;
   aurora.clearRect(0, 0, w, h);
-  const t = now / 5200;
+  const t = now / 6200;
 
   aurora.globalCompositeOperation = "source-over";
   const skyGlow = aurora.createRadialGradient(w * 0.5, h * 0.08, 0, w * 0.5, h * 0.08, h * 0.62);
@@ -1168,21 +1208,22 @@ function drawAurora(now) {
   aurora.fillStyle = skyGlow;
   aurora.fillRect(0, 0, w, h);
 
-  aurora.globalCompositeOperation = "lighter";
+  aurora.globalCompositeOperation = PERF.iosSafari ? "source-over" : "lighter";
   const curtains = [
-    { hue: "9,132,227", top: 0.10, width: 0.34, amp: 82, drift: 0.65, alpha: 0.36 },
-    { hue: "94,219,255", top: 0.15, width: 0.42, amp: 60, drift: -0.44, alpha: 0.24 },
-    { hue: "55,226,177", top: 0.20, width: 0.36, amp: 76, drift: 0.38, alpha: 0.18 },
-    { hue: "240,192,96", top: 0.27, width: 0.30, amp: 44, drift: -0.28, alpha: 0.07 }
+    { hue: "9,132,227", top: 0.10, width: 0.34, amp: 76, drift: 0.58, alpha: PERF.iosSafari ? 0.22 : 0.3 },
+    { hue: "94,219,255", top: 0.16, width: 0.38, amp: 54, drift: -0.4, alpha: PERF.iosSafari ? 0.16 : 0.22 },
+    { hue: "55,226,177", top: 0.22, width: 0.34, amp: 66, drift: 0.34, alpha: PERF.iosSafari ? 0.12 : 0.16 }
   ];
 
   curtains.forEach((curtain, layer) => {
     const baseY = h * curtain.top;
     const curtainHeight = h * curtain.width;
-    for (let ribbon = 0; ribbon < 7; ribbon++) {
-      const offset = ribbon * curtainHeight / 7;
+    const ribbonCount = PERF.mobile ? 4 : 5;
+    const step = (PERF.mobile ? 18 : 14) * auroraRatio;
+    for (let ribbon = 0; ribbon < ribbonCount; ribbon++) {
+      const offset = ribbon * curtainHeight / ribbonCount;
       aurora.beginPath();
-      for (let x = -40 * auroraRatio; x <= w + 40 * auroraRatio; x += 8 * auroraRatio) {
+      for (let x = -40 * auroraRatio; x <= w + 40 * auroraRatio; x += step) {
         const nx = x / w;
         const sway =
           Math.sin(nx * Math.PI * (1.25 + layer * 0.22) + t * curtain.drift + ribbon * 0.48) * curtain.amp * auroraRatio +
@@ -1191,7 +1232,7 @@ function drawAurora(now) {
         if (x === -40 * auroraRatio) aurora.moveTo(x, y);
         else aurora.lineTo(x, y);
       }
-      for (let x = w + 40 * auroraRatio; x >= -40 * auroraRatio; x -= 8 * auroraRatio) {
+      for (let x = w + 40 * auroraRatio; x >= -40 * auroraRatio; x -= step) {
         const nx = x / w;
         const sway =
           Math.sin(nx * Math.PI * (1.12 + layer * 0.18) + t * curtain.drift + ribbon * 0.6) * curtain.amp * 0.48 * auroraRatio;
@@ -1204,31 +1245,28 @@ function drawAurora(now) {
       grad.addColorStop(0.52, "rgba(" + curtain.hue + "," + curtain.alpha * 0.42 + ")");
       grad.addColorStop(1, "rgba(" + curtain.hue + ",0)");
       aurora.fillStyle = grad;
-      aurora.filter = "blur(" + (10 + layer * 2) * auroraRatio + "px)";
       aurora.fill();
     }
   });
 
-  aurora.filter = "blur(" + 1.2 * auroraRatio + "px)";
   const horizon = aurora.createLinearGradient(0, h * 0.16, 0, h * 0.72);
   horizon.addColorStop(0, "rgba(255,255,255,0.035)");
   horizon.addColorStop(0.28, "rgba(9,132,227,0.04)");
   horizon.addColorStop(1, "rgba(0,0,0,0)");
   aurora.fillStyle = horizon;
   aurora.fillRect(0, 0, w, h);
-  aurora.filter = "none";
   aurora.globalCompositeOperation = "source-over";
   requestAnimationFrame(drawAurora);
 }
-requestAnimationFrame(drawAurora);
 
 const codeCtx = codeRain.getContext("2d");
 let codeRatio = setCanvasSize(codeRain);
 let codeColumns = [];
+let codeLoopStarted = false;
 const codeTokens = ["const", "await", "love", "Samar", "04/29", "#0984e3", "return", "true", "memory", "sky"];
 
 function seedCode() {
-  const step = 92 * codeRatio;
+  const step = (PERF.mobile ? 140 : 110) * codeRatio;
   const cols = Math.ceil(codeRain.width / step);
   codeColumns = Array.from({ length: cols }, (_, i) => ({
     x: i * step + Math.random() * 20 * codeRatio,
@@ -1238,7 +1276,14 @@ function seedCode() {
   }));
 }
 
-function drawCode() {
+let lastCodeFrame = 0;
+function drawCode(now) {
+  const interval = PERF.mobile ? 1000 / 18 : 1000 / 24;
+  if (now - lastCodeFrame < interval) {
+    requestAnimationFrame(drawCode);
+    return;
+  }
+  lastCodeFrame = now;
   codeCtx.clearRect(0, 0, codeRain.width, codeRain.height);
   codeCtx.font = (12 * codeRatio) + "px Courier New";
   codeCtx.textAlign = "left";
@@ -1260,11 +1305,11 @@ function drawCode() {
   requestAnimationFrame(drawCode);
 }
 seedCode();
-requestAnimationFrame(drawCode);
 
 const constellationCanvas = document.getElementById("constellation");
 const constellation = constellationCanvas.getContext("2d");
 let constellationRatio = 1;
+let constellationLoopStarted = false;
 
 const rawStars = [
   [70,82],[44,96],[42,126],[72,146],[105,160],[116,190],[80,216],[42,224],[34,260],
@@ -1284,12 +1329,19 @@ const links = [
 
 function sizeConstellation() {
   const rect = constellationCanvas.getBoundingClientRect();
-  constellationRatio = Math.min(window.devicePixelRatio || 1, 2);
+  constellationRatio = Math.min(window.devicePixelRatio || 1, PERF.mobile ? 1.15 : 1.5);
   constellationCanvas.width = Math.floor(rect.width * constellationRatio);
   constellationCanvas.height = Math.floor(rect.height * constellationRatio);
 }
 
+let lastConstellationFrame = 0;
 function drawConstellation(now) {
+  const interval = PERF.mobile ? 1000 / 20 : 1000 / 28;
+  if (now - lastConstellationFrame < interval) {
+    requestAnimationFrame(drawConstellation);
+    return;
+  }
+  lastConstellationFrame = now;
   const w = constellationCanvas.width;
   const h = constellationCanvas.height;
   constellation.clearRect(0, 0, w, h);
@@ -1337,7 +1389,6 @@ function drawConstellation(now) {
 }
 
 sizeConstellation();
-requestAnimationFrame(drawConstellation);
 
 const revealObserver = new IntersectionObserver(entries => {
   entries.forEach(entry => {
@@ -1409,14 +1460,15 @@ function playDimensionTravel() {
   const h = dimensionCanvas.height;
   const cx = w / 2;
   const cy = h / 2;
-  const travelers = Array.from({ length: 360 }, () => ({
+  const travelers = Array.from({ length: PERF.mobile ? 150 : 260 }, () => ({
     angle: Math.random() * Math.PI * 2,
     radius: Math.random() * Math.min(w, h) * 0.28,
     depth: Math.random(),
     speed: 0.7 + Math.random() * 2.9,
     hue: Math.random() > 0.22 ? "116,185,255" : "240,192,96"
   }));
-  const rings = Array.from({ length: 8 }, (_, i) => ({ z: i / 8, spin: Math.random() * Math.PI * 2 }));
+  const ringCount = PERF.mobile ? 5 : 7;
+  const rings = Array.from({ length: ringCount }, (_, i) => ({ z: i / ringCount, spin: Math.random() * Math.PI * 2 }));
   const startedAt = performance.now();
   const duration = 3600;
 
@@ -1497,6 +1549,22 @@ launch.addEventListener("click", () => {
 
   setTimeout(() => {
     codeRain.style.opacity = "0.58";
+    if (!skyLoopStarted) {
+      skyLoopStarted = true;
+      requestAnimationFrame(drawSky);
+    }
+    if (!auroraLoopStarted) {
+      auroraLoopStarted = true;
+      requestAnimationFrame(drawAurora);
+    }
+    if (!constellationLoopStarted) {
+      constellationLoopStarted = true;
+      requestAnimationFrame(drawConstellation);
+    }
+    if (!codeLoopStarted) {
+      codeLoopStarted = true;
+      requestAnimationFrame(drawCode);
+    }
     playDimensionTravel();
     prelude.classList.add("open");
   }, 520);
@@ -1530,14 +1598,19 @@ const fwCanvas = document.getElementById("fireworks");
 const fw = fwCanvas.getContext("2d");
 let fwRatio = setCanvasSize(fwCanvas);
 let particles = [];
+let fwRunning = false;
 
 function launchFireworks() {
   particles = [];
   fwCanvas.style.opacity = "1";
+  if (!fwRunning) {
+    fwRunning = true;
+    requestAnimationFrame(animateFireworks);
+  }
   const palette = [[9,132,227], [116,185,255], [168,212,255], [240,192,96], [255,255,255]];
   function burst(px, py, ring) {
     fwCanvas.style.opacity = "1";
-    const count = ring ? 110 : 70;
+    const count = ring ? (PERF.mobile ? 62 : 96) : (PERF.mobile ? 40 : 62);
     const color = palette[Math.floor(Math.random() * palette.length)];
     for (let i = 0; i < count; i++) {
       const angle = Math.PI * 2 * i / count + Math.random() * 0.04;
@@ -1564,6 +1637,7 @@ function launchFireworks() {
 }
 
 function animateFireworks() {
+  if (!fwRunning) return;
   fw.fillStyle = "rgba(1,4,11,0.22)";
   fw.fillRect(0, 0, fwCanvas.width, fwCanvas.height);
   for (const p of particles) {
@@ -1594,10 +1668,13 @@ function animateFireworks() {
     p.a -= p.decay;
   }
   particles = particles.filter(p => p.a > 0);
-  if (particles.length === 0) fwCanvas.style.opacity = "0";
+  if (particles.length === 0) {
+    fwCanvas.style.opacity = "0";
+    fwRunning = false;
+    return;
+  }
   requestAnimationFrame(animateFireworks);
 }
-requestAnimationFrame(animateFireworks);
 
 memoryButton.addEventListener("click", launchFireworks);
 
